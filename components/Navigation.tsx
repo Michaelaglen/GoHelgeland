@@ -19,6 +19,7 @@ export default function Navigation({ trail, mode, onClose }: { trail: Trail; mod
   const [finished, setFinished] = useState(false);
   const [follow, setFollow] = useState(true);
   const [deviceHeading, setDeviceHeading] = useState<number | null>(null);
+  const [compassEnabled, setCompassEnabled] = useState(false);
 
   useEffect(() => {
     if (mode !== "preview") return;
@@ -82,6 +83,7 @@ export default function Navigation({ trail, mode, onClose }: { trail: Trail; mod
   }, [mode]);
 
   useEffect(() => {
+    if (!compassEnabled) return;
     function orientation(event: DeviceOrientationEvent) {
       const iosHeading = (event as DeviceOrientationEvent & { webkitCompassHeading?: number }).webkitCompassHeading;
       const heading = typeof iosHeading === "number" ? iosHeading : event.alpha != null ? 360 - event.alpha : null;
@@ -89,7 +91,20 @@ export default function Navigation({ trail, mode, onClose }: { trail: Trail; mod
     }
     window.addEventListener("deviceorientation", orientation, true);
     return () => window.removeEventListener("deviceorientation", orientation, true);
-  }, []);
+  }, [compassEnabled]);
+
+  async function enableCompass() {
+    const orientation = DeviceOrientationEvent as typeof DeviceOrientationEvent & { requestPermission?: () => Promise<"granted" | "denied"> };
+    try {
+      if (typeof orientation.requestPermission === "function") {
+        const permission = await orientation.requestPermission();
+        if (permission !== "granted") { setError("Kompasst tilgang ble ikke tillatt. Pilen bruker GPS-retning mens du går."); return; }
+      }
+      setCompassEnabled(true);
+    } catch {
+      setError("Kompasset kunne ikke aktiveres. Pilen bruker GPS-retning mens du går.");
+    }
+  }
 
   useEffect(() => {
     if (!position || !mapRef.current) return;
@@ -122,6 +137,8 @@ export default function Navigation({ trail, mode, onClose }: { trail: Trail; mod
         <button className="nav-chip" onClick={onClose}>← Ruter</button>
         <div className={`nav-chip gps-${gpsQuality.replace(" ", "-").toLowerCase()}`}>● GPS {gpsQuality}{position ? ` · ±${Math.round(position.accuracy)} m` : ""}</div>
       </div>
+      <div className="nav-title">{trail.name}</div>
+      {!compassEnabled && mode === "gps" && <button className="compass-button" onClick={enableCompass}>Aktiver kompass</button>}
 
       {!follow && <button className="recenter" onClick={() => setFollow(true)}>◎ Følg meg</button>}
       {error && <div className="nav-alert danger"><strong>Posisjon mangler</strong><span>{error}</span></div>}

@@ -12,113 +12,49 @@ function slugify(value: string): string {
 
 export function parseGpx(xml: string, fallbackName: string): Trail {
   const doc = new DOMParser().parseFromString(xml, "application/xml");
-
-  if (doc.querySelector("parsererror")) {
-    throw new Error("Filen ser ikke ut som en gyldig GPX-fil.");
-  }
+  if (doc.querySelector("parsererror")) throw new Error("Filen ser ikke ut som en gyldig GPX-fil.");
 
   const points = Array.from(doc.querySelectorAll("trkpt, rtept"));
-
-  if (points.length < 2) {
-    throw new Error(
-      "Fant færre enn to rutepunkter i GPX-filen."
-    );
-  }
+  if (points.length < 2) throw new Error("Fant færre enn to rutepunkter i GPX-filen.");
 
   const coordinates: Coordinate[] = [];
+  const elevations: number[] = [];
 
   for (const point of points) {
     const lat = Number(point.getAttribute("lat"));
     const lng = Number(point.getAttribute("lon"));
+    if (Number.isFinite(lat) && Number.isFinite(lng)) coordinates.push([lng, lat]);
 
-    if (Number.isFinite(lat) && Number.isFinite(lng)) {
-      coordinates.push([lng, lat]);
-    }
-  }
-
-  if (coordinates.length < 2) {
-    throw new Error(
-      "GPX-filen inneholder ikke nok gyldige koordinater."
-    );
-  }
-
-  const elevations: number[] = [];
-
-  for (const point of points) {
     const elevationText = point.querySelector("ele")?.textContent;
-
-    if (elevationText === null || elevationText === undefined) {
-      continue;
-    }
-
-    const elevation = Number(elevationText);
-
-    if (Number.isFinite(elevation)) {
-      elevations.push(elevation);
+    if (elevationText != null) {
+      const elevation = Number(elevationText);
+      if (Number.isFinite(elevation)) elevations.push(elevation);
     }
   }
 
-  let distanceMeters = 0;
+  if (coordinates.length < 2) throw new Error("GPX-filen inneholder ikke nok gyldige koordinater.");
 
-  for (let index = 1; index < coordinates.length; index += 1) {
-    distanceMeters += haversineMeters(
-      coordinates[index - 1],
-      coordinates[index]
-    );
+  let distance = 0;
+  for (let i = 1; i < coordinates.length; i += 1) distance += haversineMeters(coordinates[i - 1], coordinates[i]);
+
+  let ascent = 0;
+  for (let i = 1; i < elevations.length; i += 1) {
+    const gain = elevations[i] - elevations[i - 1];
+    if (gain > 0) ascent += gain;
   }
 
-  let ascentMeters = 0;
-
-  for (let index = 1; index < elevations.length; index += 1) {
-    const difference = elevations[index] - elevations[index - 1];
-
-    if (difference > 0) {
-      ascentMeters += difference;
-    }
-  }
-
-  const embeddedName = doc
-    .querySelector("trk > name, rte > name, metadata > name")
-    ?.textContent?.trim();
-
-  const fallbackNameWithoutExtension = fallbackName
-    .replace(/\.gpx$/i, "")
-    .trim();
-
-  const name =
-    embeddedName ||
-    fallbackNameWithoutExtension ||
-    "Importert tur";
-
-  const distanceKm = Math.max(
-    0.1,
-    Math.round(distanceMeters / 100) / 10
-  );
-
-  const durationMinutes = Math.max(
-    10,
-    Math.round(((distanceKm / 3.5) * 60) / 5) * 5
-  );
-
-  let difficulty: Trail["difficulty"] = "Enkel";
-
-  if (distanceKm > 10 || ascentMeters > 700) {
-    difficulty = "Krevende";
-  } else if (distanceKm > 5 || ascentMeters > 300) {
-    difficulty = "Middels";
-  }
+  const embeddedName = doc.querySelector("trk > name, rte > name, metadata > name")?.textContent?.trim();
+  const name = embeddedName || fallbackName.replace(/\.gpx$/i, "").trim() || "Importert tur";
+  const distanceKm = Math.max(0.1, Math.round(distance / 100) / 10);
 
   return {
-    slug: `${slugify(name) || "tur"}-${Date.now()
-      .toString()
-      .slice(-6)}`,
+    slug: `${slugify(name) || "tur"}-${Date.now().toString().slice(-6)}`,
     name,
-    description:
-      "Importert lokalt fra GPX. Kontroller alltid ruta før bruk i felt.",
+    description: "Importert lokalt fra GPX. Kontroller alltid ruta før bruk i felt.",
     distanceKm,
-    durationMinutes,
-    elevationGainM: Math.round(ascentMeters),
-    difficulty,
+    durationMinutes: Math.max(10, Math.round(((distanceKm / 3.5) * 60) / 5) * 5),
+    elevationGainM: Math.round(ascent),
+    difficulty: distanceKm > 10 || ascent > 700 ? "Krevende" : distanceKm > 5 || ascent > 300 ? "Middels" : "Enkel",
     coordinates,
   };
 }

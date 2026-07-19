@@ -1,31 +1,24 @@
-# Turpilot – testklar GPX-navigasjon
+# GoHelgeland
 
-Mobiltilpasset Next.js-app for å importere og teste egne GPX-ruter. Det finnes ingen demo-ruter, konto eller serverlagring.
+Mobiltilpasset GPX-navigasjon for lokal testing.
 
-## Kjør lokalt
+## Lokalt
 
 ```bash
 npm install
 npm run dev
 ```
 
-Åpne `http://localhost:3000`.
+## Arbeidsflyt Mac → iPhone
 
-## Test i vanlig nettleser
+1. Importer én eller flere GPX-filer på Mac.
+2. Bruk **Forhåndstest** for å kontrollere ruta.
+3. Trykk **Eksporter alle** og lagre JSON-filen i iCloud Drive eller send den til deg selv.
+4. Åpne GoHelgeland på iPhone og velg **Importer rutepakke**.
+5. Velg JSON-filen og start ruta med GPS.
 
-1. Importer en GPX-fil.
-2. Trykk **Forhåndstest**.
-3. Flytt skyveknappen langs ruta for å simulere progresjon.
+GPX- og rutepakkefilvelgeren bruker `accept="*/*"` fordi iOS ellers kan gråmarkere `.gpx`.
 
-## Test på mobil i felt
+## Viktig
 
-GPS krever en sikker HTTPS-adresse på mobil. Den enkleste løsningen er å legge prosjektet på GitHub og importere det i Vercel. Åpne Vercel-adressen på mobilen, importer GPX-filen der og trykk **Start med GPS**.
-
-GPX-rutene lagres lokalt i nettleserens IndexedDB. De synkroniseres ikke mellom PC og mobil. Importer derfor filene på hver enhet du tester med.
-
-## Viktige begrensninger
-
-- Kartfliser kommer fra OpenStreetMap og krever normalt internett. Allerede viste fliser kan være tilgjengelige i nettleserbufferen, men dette er ikke garantert offline-kart.
-- GPS-avvik varsles først når posisjonen er tilstrekkelig nøyaktig og avstanden fra ruta overstiger en dynamisk terskel.
-- Kontroller alltid GPX-spor fysisk før andre bruker dem.
-- En nettapp kan bli begrenset når skjermen låses. Hold skjermen aktiv under tidlige felttester.
+Rutene lagres i IndexedDB i den enkelte nettleseren. De synkroniseres ikke automatisk mellom enheter. Kartfliser krever normalt nettverk, selv om besøkte ressurser kan caches av service worker.
